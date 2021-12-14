@@ -1,0 +1,307 @@
+<html><head>
+    <title>Golf Swing Analyzer</title>
+    <link rel="icon" href="golfclub_Pal_icon.ico">
+      <meta charset="UTF-8">
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+    
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.14.2/styles/default.min.css">
+      <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.14.2/highlight.min.js"></script>
+      <script src="https://d3js.org/d3.v6.min.js"></script>
+      <script src="libs/three.min.js"></script>
+      <script src="libs/three.OrbitControls.js"></script>
+      <script src="libs/threex.domevents.js"></script>
+      
+      <style>
+        *{
+          font-family: 'Titillium Web', sans-serif;
+        }
+          body{
+            margin: 0;
+            background-color: rgba(70, 162, 78, 0.734)
+          }
+          .content{
+              margin-bottom: 12px;
+          }
+          
+          #plotContainer canvas{
+            display: block;
+            margin: auto;
+            border-radius: 24px;
+          }
+
+          header{
+              background-color: darkgreen;
+              width: 100%;
+              color: white;
+              box-shadow: 0 -5px 15px 10px darkgreen;
+              padding: 1px;
+              margin-bottom: 18px;
+          }
+
+          header h1{
+              padding-left: 24px;
+          }
+
+          #stats{
+            display: flex;
+            max-width: 1000px;
+            justify-content: center;
+            margin: auto;
+          }
+
+          .stat{
+              text-align: center;
+              border: 1px solid darkgrey;
+              padding: 1px 16px;
+              background-color: rgb(36, 36, 36);
+              color: white;
+              margin: 10px;
+              border-radius: 30%;
+              width: 140px;
+              padding-bottom: 12px;
+          }
+
+          .stat p{
+            margin-top: 2px;
+            font-size: 32px;
+            margin-bottom: 0;
+          }
+
+          .stat h3{
+              margin-bottom: 0;
+              margin-top: 6px;
+          }
+
+          .advice{
+            margin-top: 0 !important;
+            font-size: 18px !important;
+            line-height: 20px;;
+          }
+          
+      </style>
+    
+    </head>
+    <body>
+      <div class="container larger">
+      
+        <div class="content">
+            <header>
+                <h1>Golf Swing Analyzer</h1>
+            </header>
+
+            <div id="stats">
+              <div class="stat">
+                <h3>Swing Type</h3>
+                <p id="swingType"></p>
+                <p class="advice" id="swingTypeAdvice"></p>
+              </div>
+              <div class="stat">
+                <h3>Swing Speed</h3>
+                <p id="speed"></p>
+                <p class="advice" id="speedAdvice">mph</p>
+              </div>
+                <div class="stat">
+                  <h3>Swing Ratio</h3>
+                  <p id="swingRatio"></p>
+                  <p class="advice" id="swingRatioAdvice"></p>
+              </div>
+              <div class="stat">
+                <h3>Impact Angle</h3>
+                <p id="impactAngle"></p>
+                <p class="advice" id="impactAngleAdvice"></p>
+              </div>
+              <div class="stat" id="swingPlaneContainer">
+                <h3>Swing Plane</h3>
+                <p id="swingPlane"></p>
+                <p class="advice" id="impactAngleAdvice"></p>
+            </div>
+        </div>
+
+            </div>
+        </div>
+      <div id="plotContainer"></div>
+      <p id="label"></p>    
+    
+      
+      <script>
+      
+      const requestData = async () => {
+
+        const raw_swing_position = await d3.csv("../swing_data_recorder/coordinates.csv");
+        var stats = await d3.csv("../swing_data_recorder/swingStats.csv");
+        stats = stats[0];
+
+        $("#swingType").text(stats['swingType'].charAt(0).toUpperCase() + stats['swingType'].slice(1));
+        $("#speed").text(stats['swingSpeed']);
+        $("#swingRatio").text(stats['swingRatio'] + ":1");
+        $("#impactAngle").text(stats['impactAngle'] + "º");
+        $("#swingPlane").text(stats['swingPlane'] + "º");
+
+        if (stats['swingType']==="putt"){
+          $("#swingPlaneContainer").hide();
+        }
+
+        if (parseFloat(stats['impactAngle'])>20){
+          $("#impactAngleAdvice").text("Very Open");
+        } else if (parseFloat(stats['impactAngle'])>10){
+          $("#impactAngleAdvice").text("Open");
+        } else if (parseFloat(stats['impactAngle'])<-20){
+          $("#impactAngleAdvice").text("Very Closed");
+        } else if (parseFloat(stats['impactAngle'])<-10){
+          $("#impactAngleAdvice").text("Closed");
+        } else {
+          $("#impactAngleAdvice").text("Straight shot!");
+        }
+
+        if (parseFloat(stats['swingRatio'])>15){
+          $("#swingRatioAdvice").text("Very slow backswing");
+        } else if (parseFloat(stats['swingRatio'])>7){
+          $("#swingRatioAdvice").text("Slow backswing");
+        } else if (parseFloat(stats['swingRatio'])>3.5){
+          $("#swingRatioAdvice").text("Good backswing");
+        } if ((parseFloat(stats['swingRatio'])>2.5)&&(parseFloat(stats['swingRatio'])<3.5)){
+          $("#swingRatioAdvice").text("Great form!");
+        } 
+
+        var positions = [];
+        raw_swing_position.forEach(function (d) {
+
+          try {
+            row = { };
+            row["x"] = parseFloat(d['x'].trim());
+            row["y"] = parseFloat(d['y'].trim());
+            row["z"] = parseFloat(d['z'].trim());
+            positions.push(row);
+            console.log(row);
+          } catch (error) { }
+        });
+
+        console.log(positions);
+        
+        let xScale = d3.scaleLinear().domain(d3.extent(positions, d=>d['x'])).range( [-200,200] );
+        let yScale = d3.scaleLinear().domain(d3.extent(positions, d=>d['y'])).range( [-200,200] );
+        let zScale = d3.scaleLinear().domain(d3.extent(positions, d=>d['z'])).range( [-200,200] );
+        let data = [];
+        positions.forEach( d=> {
+          data.push({
+            x: xScale(d['x']),
+            y: yScale(d['y']),
+            z: zScale(d['z']),
+          });
+        });
+        console.log(data);
+        
+        let container = document.getElementById("plotContainer");
+        let width = 600;
+        let height = 400;
+        
+        // THREE scene object
+        let scene = new THREE.Scene();
+        scene.background = new THREE.Color( 0xdefade );
+
+        let camera = new THREE.PerspectiveCamera( 50, width/height, 0.1, 2000 );
+        camera.position.x = 400;
+        camera.position.y = 400;
+        camera.position.z = 600;
+        
+        let control = new THREE.OrbitControls( camera );
+        control.enableZoom = false;
+        
+        let renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( width, height );
+        
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
+        
+        container.appendChild( renderer.domElement );
+                
+        function makeLight( xPos, yPos, zPos ) {
+          
+          let light = new THREE.DirectionalLight( 0xffffff, 1 );
+          light.position.set(xPos, yPos, zPos);
+          
+            light.castShadow = true;
+            light.shadow.camera.left = -width / 2;
+            light.shadow.camera.right = width / 2;
+            light.shadow.camera.top = -height / 2;
+            light.shadow.camera.bottom = height / 2;
+            light.shadow.camera.near = 1;
+            light.shadow.camera.far = 4000;
+            light.shadow.mapSize.width = 1024;
+            light.shadow.mapSize.height = 1024;
+          
+          return light;
+        }
+        
+        
+        let lightX = makeLight(500, 0, 0);
+        let lightY = makeLight(0, 500, 0);
+        let lightZ = makeLight(0, 0, 500);
+        
+        scene.add( lightX );
+        scene.add( lightY );
+        scene.add( lightZ );
+        
+        let points = [];
+        
+        data.forEach( d => {
+            points.push( new THREE.Vector3( d.x, d.y, d.z ) );
+          
+        } );
+        let material = new THREE.MeshLambertMaterial( );
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints( points );
+        const line = new THREE.Line( lineGeometry, material );
+
+        scene.add( line );
+        
+        function animate() {
+          requestAnimationFrame( animate );
+          render();
+        }
+        
+        function render() {
+          control.update();
+          renderer.render( scene, camera );
+        }
+        
+        animate();
+        
+        let box = new THREE.BoxBufferGeometry( 500, 10, 500 );
+        let groundMaterial = new THREE.MeshLambertMaterial( {color: 0x38761d} );
+        
+        let cubeX = new THREE.Mesh( box, groundMaterial );
+        cubeX.position.y = -250;
+        cubeX.receiveShadow = true;
+        scene.add( cubeX );       
+      
+      }
+      
+      requestData();
+      
+      
+      
+      
+      
+      
+    
+      </script>
+    
+    
+    
+    
+    
+      <!--- calls the highlight library to fill the <pre> tag with code --->
+      <script>
+      hljs.initHighlightingOnLoad();
+      </script>
+    
+    
+    
+      </div>
+    </body>
+    </html>
+    
